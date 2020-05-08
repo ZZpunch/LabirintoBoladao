@@ -1,31 +1,14 @@
-//Aluno Lucas Heitor
-
-// #include <windows.h>     //biblioteca do windows...
 #include <GL/gl.h>       //biblioteca gl.h
 #include <GL/glut.h>     //biblioteca glut - ferramentas adicionais
 #include <math.h>
-
-//DEFINES--------------------------------------------
+#include <stdio.h>
 
 #define TAM_BLOCO 100
 #define PASSO	10
-
 #define NORTE  0
 #define LESTE  1
 #define SUL    2
 #define OESTE  3
-
-/* ESTRUTURAS------------ */
-
-typedef struct _esf
-{
-	GLint  x_pos, z_pos;
-	GLint dir;
-
-} ESFERA;
-
-
-//GLOBALS--------------------------------------------
 
 GLfloat corParede[] = { 0.2, 0.1, 0.2, 1.0 };
 GLfloat corChao[] = { 1.0,1.0,1.0,1.0 };
@@ -34,17 +17,11 @@ GLfloat luz_branca[] = { 1.0,1.0,1.0,1.0 };
 GLfloat lmodel_ambient[] = { 0.6,0.6,0.6,1.0 };
 GLfloat mapaChegada[] = { 0.7, 0.1, 0.1, 1.0 };
 
-
-
 GLfloat jog_x = TAM_BLOCO, jog_z = TAM_BLOCO;
 GLfloat jog_y = 25;
-GLfloat mov_x = PASSO, mov_z = 0;
-GLint angulo = 0;
+GLfloat mov_x = 10, mov_y = 0, mov_z = 0;
+GLint angle = 0;
 GLint wire = 0;
-
-
-ESFERA g_esfera;
-
 
 /*labirinto */
 GLint mapa[15][19] = 
@@ -58,40 +35,42 @@ GLint mapa[15][19] =
   1,0,0,0,0,0,0,1,0,1,1,0,1,0,1,1,0,1,1,
   1,0,1,1,0,1,1,1,0,0,0,0,1,0,1,1,0,0,1,
   1,0,1,0,0,1,0,0,0,1,1,1,1,0,1,0,1,0,1,
-  1,0,1,0,1,1,0,1,0,0,0,0,1,0,1,0,1,0,1,
+  1,0,1,0,1,1,0,1,0,0,0,0,0,0,1,0,1,0,1,
   1,0,1,0,0,0,0,1,1,1,1,1,1,0,1,0,0,0,1,
   1,0,1,0,1,1,0,1,0,0,0,0,0,0,1,1,0,1,1,
   1,0,0,0,0,0,0,1,0,0,1,1,1,1,0,0,0,1,1,
   1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1 };
 
-//FUNCOES--------------------------------------------
-int pode_mover(float pos_x, float pos_z, float vet_x, float vet_z)
+
+float deltaAngle = 0.0f;
+float anglesX = 0;
+float anglesY = 0;
+float nextMoveX =0;
+float nextMoveZ =0;
+
+int pode_mover(float pos_x, float pos_z, float mov_x, float mov_z)
 {
-	float mundo_x = pos_x + vet_x;
-	float mundo_z = pos_z + vet_z;
+	float mundo_x = pos_x + mov_x;
+	float mundo_z = pos_z + mov_z;
 
-	int ind_x = (int)((mundo_x + TAM_BLOCO / 2) / TAM_BLOCO);
-	int ind_z = (int)((mundo_z + TAM_BLOCO / 2) / TAM_BLOCO);
-
+	int ind_x = (int)((mundo_x + TAM_BLOCO / 2) / TAM_BLOCO) ;
+	int ind_z = (int)((mundo_z + TAM_BLOCO / 2) / TAM_BLOCO) ;
+	
 	if (mapa[ind_x][ind_z]) return 0;
 	else return 1;
 }
-
-//---------------------------------------------
 
 void display(void)
 {
 	int x, y;
 	int x_mun, y_mun;
 
-
 	//limpa todos os pixels
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glLoadIdentity();
 
-	gluLookAt(jog_x, jog_y, jog_z, jog_x + mov_x, jog_y, jog_z + mov_z, 0, 1, 0);
-
+	gluLookAt(jog_x, jog_y, jog_z, jog_x + mov_x, jog_y+ mov_y, jog_z + mov_z, 0, 1, 0);
 
 	glPushMatrix();
 
@@ -120,13 +99,7 @@ void display(void)
 				y_mun = y * TAM_BLOCO;
 
 				glPushMatrix();
-
-				if (x == 13 && y == 8) {
-					glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, mapaChegada);
-				}
-				else {
-					glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, corParede);	
-				}
+				glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, corParede);	
 
 				glTranslatef(x_mun, 5, y_mun);
 
@@ -139,15 +112,14 @@ void display(void)
 		}
 	}
 
-	//Desenho uma parede vermelha para indicar o fim do labirinto.
-
 	glutSwapBuffers();
 }
 
-//-----------------------------------------------------------------
 
 void Keyboard_Function(unsigned char key, int x, int y)
 {
+	nextMoveX = sinf(anglesX) * -cosf(anglesY) * PASSO;
+	nextMoveZ = cosf(anglesX) * cosf(anglesY) * PASSO;
 	switch (key)
 	{
 		case 27:
@@ -158,74 +130,65 @@ void Keyboard_Function(unsigned char key, int x, int y)
 		case 'e':
 			jog_y -= 10;
 			break;
+		case 's':
+			if (pode_mover(jog_x, jog_z, -nextMoveX, -nextMoveZ))
+			{
+				jog_x -= nextMoveX;
+				jog_z -= nextMoveZ;	
+			}
+			break;
+		case 'w':
+			if (pode_mover(jog_x, jog_z, nextMoveX, nextMoveZ))
+			{
+				jog_x += sinf(anglesX) * -cosf(anglesY) * PASSO;
+				jog_z += cosf(anglesX) * cosf(anglesY) * PASSO;
+			}
+			break;
 	}
 
 }
 
-//-----------------------------------------------------------------
-
-void Special_Function(int key, int x, int y)
-{
-	float rad;
-
-	switch (key)
-	{
-	case GLUT_KEY_DOWN:
-
-		if (pode_mover(jog_x, jog_z, -mov_x, -mov_z))
-		{
-			jog_x -= mov_x;
-			jog_z -= mov_z;	
-		}
-		break;
-
-
-	case GLUT_KEY_UP:
-
-		if (pode_mover(jog_x, jog_z, mov_x, mov_z))
-		{
-			jog_x += mov_x;
-			jog_z += mov_z;
-		}
-		break;
-
-	case GLUT_KEY_LEFT:
-
-		angulo -= 10;
-
-		if (angulo < 0) angulo += 360;
-
-
-		rad = (float)(3.14159 * angulo / 180.0f);
-
-		mov_x = cos(rad) * PASSO;
-		mov_z = sin(rad) * PASSO;
-		break;
-
-
-	case GLUT_KEY_RIGHT:
-
-		angulo += 10;
-
-		if (angulo >= 360) angulo -= 360;
-
-		rad = (float)(3.14159 * angulo / 180.0f);
-
-		mov_x = cos(rad) * PASSO;
-		mov_z = sin(rad) * PASSO;
-
-		break;
-	}
-
-}
-
-//-----------------------------------------------------------------
 void postRedisplay(void)
 {
 	glutPostRedisplay();
 	
 }
-//-----------------------------------------------------------------
+
+void mouseMove(int x, int y) { 	
+	static int wrap = 0;
+
+	if(!wrap) {
+		int ww = glutGet(GLUT_WINDOW_WIDTH);
+		int wh = glutGet(GLUT_WINDOW_HEIGHT);
+
+		int dx = x - ww / 2;
+		int dy = y - wh / 2;
+
+		const float mousespeed = 0.001;
+
+		anglesX += dx * mousespeed;
+		anglesY += dy * mousespeed;
+
+		if(anglesX < -M_PI)
+			anglesX += M_PI * 2;
+		else if(anglesX > M_PI)
+			anglesX -= M_PI * 2;
+
+		if(anglesY < -M_PI / 2)
+			anglesY = -M_PI / 2;
+		if(anglesY > M_PI / 2)
+			anglesY = M_PI / 2;
+
+		mov_x = sinf(anglesX) * -cosf(anglesY);
+		mov_y = -sinf(anglesY);
+		mov_z = cosf(anglesX) * cosf(anglesY);
+		
+		wrap = 1;
+		glutWarpPointer(ww / 2, wh / 2);
+	} else {
+		wrap = 0;
+	}
+}
 
 void Inicializa(void)
 {
@@ -252,24 +215,23 @@ void Inicializa(void)
 
 }
 
-//--------------------------------------------------------------
-
 void main(int argc, char **argv)
 {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	glutCreateWindow("Trabalho Computacao Grafica - Professor Chaua");
+	glutCreateWindow("Trabalho Computacao Grafica");
 	glutFullScreen();
 
 	Inicializa();
 
 	glutDisplayFunc(display);
 	glutKeyboardFunc(Keyboard_Function);
-	glutSpecialFunc(Special_Function);
+
+	glutMotionFunc(mouseMove);
+	glutPassiveMotionFunc(mouseMove);	
+	glutSetCursor(GLUT_CURSOR_NONE);
+
 	glutIdleFunc(postRedisplay);
 
 	glutMainLoop();
-
 }
-
-
